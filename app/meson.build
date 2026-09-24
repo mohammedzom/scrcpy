@@ -36,7 +36,6 @@ src = [
     'src/texture.c',
     'src/version.c',
     'src/video_regulator.c',
-    'src/hid/hid_consumer_control.c',
     'src/hid/hid_gamepad.c',
     'src/hid/hid_keyboard.c',
     'src/hid/hid_mouse.c',
@@ -111,7 +110,6 @@ usb_support = get_option('usb')
 if usb_support
     src += [
         'src/usb/aoa_hid.c',
-        'src/usb/consumer_control_aoa.c',
         'src/usb/gamepad_aoa.c',
         'src/usb/keyboard_aoa.c',
         'src/usb/mouse_aoa.c',
