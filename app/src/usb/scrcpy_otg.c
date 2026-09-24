@@ -197,7 +197,13 @@ scrcpy_otg(struct scrcpy_options *options) {
     aoa_started = true;
 
     if (enable_accessibility_shortcut) {
-        LOGI("Sending accessibility volume-key shortcut over AOA keyboard HID...");
+        // Give Android time to finish registering the AOA HID devices before
+        // the first input report. Some USB stacks stall endpoint zero if an
+        // HID event is sent immediately after SET_HID_REPORT_DESC.
+        LOGI("Waiting for AOA HID registration to settle...");
+        SDL_Delay(1500);
+
+        LOGI("Queueing accessibility volume-key shortcut over AOA keyboard HID...");
 
         struct sc_key_event volume_up_down = {
             .action = SC_ACTION_DOWN,
@@ -226,7 +232,7 @@ scrcpy_otg(struct scrcpy_options *options) {
         kp->ops->process_key(kp, &volume_up_up, SC_SEQUENCE_INVALID);
         kp->ops->process_key(kp, &volume_down_up, SC_SEQUENCE_INVALID);
 
-        LOGI("Accessibility shortcut sent (Volume Up + Volume Down, 3.5s)");
+        LOGI("Accessibility shortcut queued (Volume Up + Volume Down, 3.5s)");
     }
 
     const char *window_title = options->window_title;
