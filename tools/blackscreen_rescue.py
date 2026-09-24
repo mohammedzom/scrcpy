@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 
 def require_binary(name: str) -> str:
@@ -13,6 +14,20 @@ def require_binary(name: str) -> str:
     if not path:
         raise SystemExit(f"ERROR: required command not found: {name}")
     return path
+
+
+def command_supports(binary: str, option: str) -> bool:
+    try:
+        proc = subprocess.run(
+            [binary, "--help"],
+            capture_output=True,
+            text=True,
+            timeout=3.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return option in (proc.stdout + proc.stderr)
 
 
 def adb_devices(adb: str, timeout: float = 3.0):
@@ -69,6 +84,19 @@ def main() -> int:
         help="Only watch ADB; do not start scrcpy OTG",
     )
     parser.add_argument(
+        "--no-accessibility-shortcut",
+        action="store_true",
+        help="Do not attempt the Volume Up + Volume Down accessibility shortcut",
+    )
+    parser.add_argument(
+        "--otg-scrcpy",
+        help=(
+            "scrcpy binary to use for OTG. By default, use "
+            "build-auto/app/scrcpy from this checkout when available, "
+            "otherwise use scrcpy from PATH."
+        ),
+    )
+    parser.add_argument(
         "scrcpy_args",
         nargs=argparse.REMAINDER,
         help="Extra arguments passed to normal scrcpy after ADB is ready",
@@ -78,6 +106,16 @@ def main() -> int:
     scrcpy = require_binary("scrcpy")
     adb = require_binary("adb")
 
+    repo_root = Path(__file__).resolve().parents[1]
+    local_otg = repo_root / "build-auto" / "app" / "scrcpy"
+
+    if args.otg_scrcpy:
+        otg_scrcpy = args.otg_scrcpy
+    elif local_otg.is_file():
+        otg_scrcpy = str(local_otg)
+    else:
+        otg_scrcpy = scrcpy
+
     print("BlackScreen Rescue MVP")
     print("Use only on a device you own or are authorized to service.")
     print("This tool does not bypass PIN, pattern, password, FRP, or encryption.")
@@ -85,10 +123,27 @@ def main() -> int:
 
     otg = None
     if not args.no_otg:
-        cmd = [scrcpy, "--otg"]
+        cmd = [otg_scrcpy, "--otg"]
         if args.serial:
             cmd += ["-s", args.serial]
-        print("[1/3] Starting OTG keyboard/mouse control...")
+
+        accessibility_option = "--accessibility-shortcut"
+        if not args.no_accessibility_shortcut:
+            if command_supports(otg_scrcpy, accessibility_option):
+                cmd.append(accessibility_option)
+                print(
+                    "[1/3] Starting OTG control and attempting the "
+                    "accessibility volume-key shortcut..."
+                )
+            else:
+                print(
+                    "[1/3] Starting OTG keyboard/mouse control. "
+                    "This scrcpy build does not include automatic "
+                    "accessibility-shortcut support."
+                )
+        else:
+            print("[1/3] Starting OTG keyboard/mouse control...")
+
         otg = subprocess.Popen(cmd)
     else:
         print("[1/3] OTG start skipped.")
