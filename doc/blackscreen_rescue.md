@@ -110,3 +110,40 @@ a phone output video if the phone hardware/firmware does not support a video
 transport such as DisplayPort Alt Mode. BlackScreen Rescue therefore uses
 accessibility feedback and OTG input only as a bridge until ADB-based mirroring
 becomes legitimately available.
+
+
+## Experimental automatic TalkBack shortcut
+
+This fork adds an experimental OTG-only option:
+
+```bash
+scrcpy --otg --accessibility-shortcut
+```
+
+It registers an AOA Consumer Control HID device and emulates holding
+**Volume Up + Volume Down** for 3.5 seconds.
+
+On Android devices where the accessibility volume-key shortcut is available and
+configured for TalkBack, this may activate TalkBack without ADB.
+
+Important limitations:
+
+- the Android accessibility shortcut is vendor/version/configuration dependent;
+- some devices may require a confirmation the first time the shortcut is used;
+- some devices may have the shortcut disabled or assigned to another service;
+- this does not bypass the device lock or any account/device protection.
+
+For development testing, the custom client can be built without building the
+Android server because OTG mode does not use the server:
+
+```bash
+rm -rf build-auto
+meson setup build-auto --buildtype=debug -Dcompile_server=false
+ninja -C build-auto
+
+./build-auto/app/scrcpy --otg --accessibility-shortcut
+```
+
+The rescue helper automatically prefers `build-auto/app/scrcpy` for OTG when
+that binary exists, while keeping the regular `scrcpy` from PATH for the final
+ADB mirroring stage.
