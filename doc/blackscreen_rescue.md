@@ -120,8 +120,10 @@ This fork adds an experimental OTG-only option:
 scrcpy --otg --accessibility-shortcut
 ```
 
-It registers an AOA Consumer Control HID device and emulates holding
-**Volume Up + Volume Down** for 3.5 seconds.
+It reuses the already-working AOA keyboard HID and emulates holding
+**Volume Up + Volume Down** for 3.5 seconds using the corresponding USB HID
+keyboard usages. This avoids relying on a separate Consumer Control HID device,
+which some Android USB stacks reject.
 
 On Android devices where the accessibility volume-key shortcut is available and
 configured for TalkBack, this may activate TalkBack without ADB.
