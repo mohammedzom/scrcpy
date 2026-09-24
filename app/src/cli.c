@@ -52,6 +52,7 @@ enum {
     OPT_TCPIP,
     OPT_RAW_KEY_EVENTS,
     OPT_NO_DOWNSIZE_ON_ERROR,
+    OPT_ACCESSIBILITY_SHORTCUT,
     OPT_OTG,
     OPT_NO_CLEANUP,
     OPT_PRINT_FPS,
@@ -713,6 +714,15 @@ static const struct sc_option options[] = {
         .argdesc = "value",
         .text = "Same as --display-orientation=value "
                 "--record-orientation=value.",
+    },
+    {
+        .longopt_id = OPT_ACCESSIBILITY_SHORTCUT,
+        .longopt = "accessibility-shortcut",
+        .text = "In OTG mode, emulate holding Volume Up + Volume Down for "
+                "3.5 seconds using an AOA Consumer Control HID device. "
+                "On Android devices where the accessibility volume-key "
+                "shortcut is configured for TalkBack, this can activate "
+                "TalkBack without adb. Implies --otg.",
     },
     {
         .longopt_id = OPT_OTG,
@@ -2765,6 +2775,15 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                     return false;
                 }
                 break;
+            case OPT_ACCESSIBILITY_SHORTCUT:
+#ifdef HAVE_USB
+                opts->accessibility_shortcut = true;
+                opts->otg = true;
+                break;
+#else
+                LOGE("Accessibility shortcut requires USB/OTG support.");
+                return false;
+#endif
             case OPT_OTG:
 #ifdef HAVE_USB
                 opts->otg = true;
