@@ -12,7 +12,6 @@
 #include "screen.h"
 #include "sdl_hints.h"
 #include "usb/aoa_hid.h"
-#include "usb/consumer_control_aoa.h"
 #include "usb/gamepad_aoa.h"
 #include "usb/keyboard_aoa.h"
 #include "usb/mouse_aoa.h"
@@ -23,7 +22,6 @@
 struct scrcpy_otg {
     struct sc_usb usb;
     struct sc_aoa aoa;
-    struct sc_consumer_control_aoa consumer_control;
     struct sc_keyboard_aoa keyboard;
     struct sc_mouse_aoa mouse;
     struct sc_gamepad_aoa gamepad;
@@ -166,11 +164,9 @@ scrcpy_otg(struct scrcpy_options *options) {
     bool enable_gamepad =
         options->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_AOA;
 
-    if (enable_accessibility_shortcut) {
-        ok = sc_consumer_control_aoa_init(&s->consumer_control, &s->aoa);
-        if (!ok) {
-            goto end;
-        }
+    if (enable_accessibility_shortcut && !enable_keyboard) {
+        LOGE("--accessibility-shortcut requires AOA keyboard input");
+        goto end;
     }
 
     if (enable_keyboard) {
@@ -201,20 +197,34 @@ scrcpy_otg(struct scrcpy_options *options) {
     aoa_started = true;
 
     if (enable_accessibility_shortcut) {
-        LOGI("Sending accessibility volume-key shortcut over AOA HID...");
-        ok = sc_consumer_control_aoa_set_volume(&s->consumer_control,
-                                                true, true);
-        if (!ok) {
-            goto end;
-        }
+        LOGI("Sending accessibility volume-key shortcut over AOA keyboard HID...");
+
+        struct sc_key_event volume_up_down = {
+            .action = SC_ACTION_DOWN,
+            .keycode = SC_KEYCODE_UNKNOWN,
+            .scancode = (enum sc_scancode) SDL_SCANCODE_VOLUMEUP,
+            .mods_state = 0,
+            .repeat = false,
+        };
+        struct sc_key_event volume_down_down = {
+            .action = SC_ACTION_DOWN,
+            .keycode = SC_KEYCODE_UNKNOWN,
+            .scancode = (enum sc_scancode) SDL_SCANCODE_VOLUMEDOWN,
+            .mods_state = 0,
+            .repeat = false,
+        };
+        struct sc_key_event volume_up_up = volume_up_down;
+        volume_up_up.action = SC_ACTION_UP;
+        struct sc_key_event volume_down_up = volume_down_down;
+        volume_down_up.action = SC_ACTION_UP;
+
+        kp->ops->process_key(kp, &volume_up_down, SC_SEQUENCE_INVALID);
+        kp->ops->process_key(kp, &volume_down_down, SC_SEQUENCE_INVALID);
 
         SDL_Delay(3500);
 
-        ok = sc_consumer_control_aoa_set_volume(&s->consumer_control,
-                                                false, false);
-        if (!ok) {
-            goto end;
-        }
+        kp->ops->process_key(kp, &volume_up_up, SC_SEQUENCE_INVALID);
+        kp->ops->process_key(kp, &volume_down_up, SC_SEQUENCE_INVALID);
 
         LOGI("Accessibility shortcut sent (Volume Up + Volume Down, 3.5s)");
     }
