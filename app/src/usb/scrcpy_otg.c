@@ -297,9 +297,6 @@ end:
     if (gp) {
         sc_gamepad_aoa_destroy(&s->gamepad);
     }
-    if (enable_accessibility_shortcut) {
-        sc_consumer_control_aoa_destroy(&s->consumer_control);
-    }
 
     if (aoa_initialized) {
         sc_aoa_join(&s->aoa);
