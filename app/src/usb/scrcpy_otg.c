@@ -12,6 +12,7 @@
 #include "screen.h"
 #include "sdl_hints.h"
 #include "usb/aoa_hid.h"
+#include "usb/consumer_control_aoa.h"
 #include "usb/gamepad_aoa.h"
 #include "usb/keyboard_aoa.h"
 #include "usb/mouse_aoa.h"
@@ -22,6 +23,7 @@
 struct scrcpy_otg {
     struct sc_usb usb;
     struct sc_aoa aoa;
+    struct sc_consumer_control_aoa consumer_control;
     struct sc_keyboard_aoa keyboard;
     struct sc_mouse_aoa mouse;
     struct sc_gamepad_aoa gamepad;
@@ -156,12 +158,20 @@ scrcpy_otg(struct scrcpy_options *options) {
     assert(options->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_AOA
         || options->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_DISABLED);
 
+    bool enable_accessibility_shortcut = options->accessibility_shortcut;
     bool enable_keyboard =
         options->keyboard_input_mode == SC_KEYBOARD_INPUT_MODE_AOA;
     bool enable_mouse =
         options->mouse_input_mode == SC_MOUSE_INPUT_MODE_AOA;
     bool enable_gamepad =
         options->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_AOA;
+
+    if (enable_accessibility_shortcut) {
+        ok = sc_consumer_control_aoa_init(&s->consumer_control, &s->aoa);
+        if (!ok) {
+            goto end;
+        }
+    }
 
     if (enable_keyboard) {
         ok = sc_keyboard_aoa_init(&s->keyboard, &s->aoa);
@@ -189,6 +199,25 @@ scrcpy_otg(struct scrcpy_options *options) {
         goto end;
     }
     aoa_started = true;
+
+    if (enable_accessibility_shortcut) {
+        LOGI("Sending accessibility volume-key shortcut over AOA HID...");
+        ok = sc_consumer_control_aoa_set_volume(&s->consumer_control,
+                                                true, true);
+        if (!ok) {
+            goto end;
+        }
+
+        SDL_Delay(3500);
+
+        ok = sc_consumer_control_aoa_set_volume(&s->consumer_control,
+                                                false, false);
+        if (!ok) {
+            goto end;
+        }
+
+        LOGI("Accessibility shortcut sent (Volume Up + Volume Down, 3.5s)");
+    }
 
     const char *window_title = options->window_title;
     if (!window_title) {
@@ -267,6 +296,9 @@ end:
     }
     if (gp) {
         sc_gamepad_aoa_destroy(&s->gamepad);
+    }
+    if (enable_accessibility_shortcut) {
+        sc_consumer_control_aoa_destroy(&s->consumer_control);
     }
 
     if (aoa_initialized) {
