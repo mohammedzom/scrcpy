@@ -112,8 +112,11 @@ static const uint8_t SC_HID_KEYBOARD_REPORT_DESC[] = {
     0x29, SC_HID_KEYBOARD_KEYS - 1,
     // Logical Minimum (0)
     0x15, 0x00,
-    // Logical Maximum(101)
-    0x25, SC_HID_KEYBOARD_KEYS - 1,
+    // Logical Maximum (129).
+    // Values above 127 must use the 16-bit HID item form; using 0x25, 0x81
+    // would be interpreted as a negative signed value by HID parsers.
+    0x26, (SC_HID_KEYBOARD_KEYS - 1) & 0xFF,
+          ((SC_HID_KEYBOARD_KEYS - 1) >> 8) & 0xFF,
     // Report Size (8)
     0x75, 0x08,
     // Report Count (6)

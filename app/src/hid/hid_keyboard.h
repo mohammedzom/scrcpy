@@ -12,8 +12,9 @@
 // See "SDL3/SDL_scancode.h".
 // Maybe SDL_Keycode is used by most people, but SDL_Scancode is taken from USB
 // HID protocol.
-// 0x65 is Application, typically AT-101 Keyboard ends here.
-#define SC_HID_KEYBOARD_KEYS 0x66
+// Keep standard keyboard usages plus Volume Up (0x80) and Volume Down (0x81).
+// SDL scancode values follow USB HID usage IDs for these keys.
+#define SC_HID_KEYBOARD_KEYS 0x82
 
 #define SC_HID_ID_KEYBOARD 1
 

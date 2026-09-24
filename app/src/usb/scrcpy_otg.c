@@ -156,12 +156,18 @@ scrcpy_otg(struct scrcpy_options *options) {
     assert(options->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_AOA
         || options->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_DISABLED);
 
+    bool enable_accessibility_shortcut = options->accessibility_shortcut;
     bool enable_keyboard =
         options->keyboard_input_mode == SC_KEYBOARD_INPUT_MODE_AOA;
     bool enable_mouse =
         options->mouse_input_mode == SC_MOUSE_INPUT_MODE_AOA;
     bool enable_gamepad =
         options->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_AOA;
+
+    if (enable_accessibility_shortcut && !enable_keyboard) {
+        LOGE("--accessibility-shortcut requires AOA keyboard input");
+        goto end;
+    }
 
     if (enable_keyboard) {
         ok = sc_keyboard_aoa_init(&s->keyboard, &s->aoa);
@@ -189,6 +195,45 @@ scrcpy_otg(struct scrcpy_options *options) {
         goto end;
     }
     aoa_started = true;
+
+    if (enable_accessibility_shortcut) {
+        // Give Android time to finish registering the AOA HID devices before
+        // the first input report. Some USB stacks stall endpoint zero if an
+        // HID event is sent immediately after SET_HID_REPORT_DESC.
+        LOGI("Waiting for AOA HID registration to settle...");
+        SDL_Delay(1500);
+
+        LOGI("Queueing accessibility volume-key shortcut over AOA keyboard HID...");
+
+        struct sc_key_event volume_up_down = {
+            .action = SC_ACTION_DOWN,
+            .keycode = SC_KEYCODE_UNKNOWN,
+            .scancode = (enum sc_scancode) SDL_SCANCODE_VOLUMEUP,
+            .mods_state = 0,
+            .repeat = false,
+        };
+        struct sc_key_event volume_down_down = {
+            .action = SC_ACTION_DOWN,
+            .keycode = SC_KEYCODE_UNKNOWN,
+            .scancode = (enum sc_scancode) SDL_SCANCODE_VOLUMEDOWN,
+            .mods_state = 0,
+            .repeat = false,
+        };
+        struct sc_key_event volume_up_up = volume_up_down;
+        volume_up_up.action = SC_ACTION_UP;
+        struct sc_key_event volume_down_up = volume_down_down;
+        volume_down_up.action = SC_ACTION_UP;
+
+        kp->ops->process_key(kp, &volume_up_down, SC_SEQUENCE_INVALID);
+        kp->ops->process_key(kp, &volume_down_down, SC_SEQUENCE_INVALID);
+
+        SDL_Delay(3500);
+
+        kp->ops->process_key(kp, &volume_up_up, SC_SEQUENCE_INVALID);
+        kp->ops->process_key(kp, &volume_down_up, SC_SEQUENCE_INVALID);
+
+        LOGI("Accessibility shortcut queued (Volume Up + Volume Down, 3.5s)");
+    }
 
     const char *window_title = options->window_title;
     if (!window_title) {
