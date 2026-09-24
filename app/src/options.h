@@ -296,6 +296,7 @@ struct scrcpy_options {
 #endif
 #ifdef HAVE_USB
     bool otg;
+    bool accessibility_shortcut;
 #endif
     bool show_touches;
     bool fullscreen;
